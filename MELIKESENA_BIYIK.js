@@ -1,22 +1,13 @@
 
-//Code only runs on homepage
-async function isHomePage() {
-    try {
-            if (window.location.pathname === "/" || window.location.pathname === "/index.html") {
-                return true;
-            } else {
-                console.log("wrong page");
-                return false;
-            }
-    }
-     catch (error) {
-        console.error(error.message);
-        return false;
-    }
+function isHomePage() {
+    const path = window.location.pathname.replace(/\/$/, ''); 
+    return path === "" || path === "/index.html";
 }
 
 
-// Fetch the product list and log it to the console
+
+
+
 async function getData() {
     const url = "https://gist.githubusercontent.com/sevindi/8bcbde9f02c1d4abe112809c974e1f49/raw/9bf93b58df623a9b16f1db721cd0a7a539296cf0/products.json";
     try {
@@ -46,17 +37,20 @@ async function getData() {
 const buildHtml = (products) => {
     const html = products.map(product => 
     {
-        //If price and original price different then show discount
-        const discount = product.original_price > product.price ? `<span class="discount">-${Math.round((product.original_price - product.price) / product.original_price) * 100}%</span>` : '';
+        const discount = product.original_price > product.price ? `<span class="discount">-${Math.round(((product.original_price - product.price) / product.original_price) * 100)}%</span>` : '';
         const originalPrice = product.original_price > product.price ? `<span class="original-price">$${product.original_price}</span>` : '';
 
 
         return `
         <div class="product" data-url="${product.url}" data-id="${product.id}">
             <img src="${product.img}" width="242" height="200" alt="${product.name}">
-            <h2>${product.name}</h2>
+            <h2 class="product-item__brand-name">
+                <b class="brand">${product.brand} - </b>
+                <span class="description">${product.name}</span>
+            </h2>
             <p class="price">$${product.price} ${originalPrice} ${discount}</p>
             <i class="heart-icon" title="Favorilere Ekle"></i>
+            <i class="add-icon" title="Sepete Ekle">+</i>
         </div>
         `;
     }).join('');
@@ -65,20 +59,40 @@ const buildHtml = (products) => {
 };
 
 const createCarousel = (products) => {
-    const carouselHtml =
-    `
+    if (!(window.location.pathname === "/" || window.location.pathname === "/index.html")) return;
+    const section = document.querySelector('cx-page-slot[position="Section2A"]');
+    if (!section || document.querySelector('.carousel')) return;
+    const carouselHtml =`
     <div class="carousel">
-        <h2> Beğenebileceğinizi düşündüklerimiz </h2>
+        <h2> Beğenebileceğinizi Düşündüklerimiz </h2>
+        <div class="carousel-wrapper">
+            <button class="carousel-btn prev">&lt;</button>
         <div class="carousel-container">
-        ${buildHtml(products)}
+
+            ${buildHtml(products)}
+        </div>
+        <button class="carousel-btn next">&gt;</button>
         </div>
     </div>
     `;
 
-    const section = document.querySelector('cx-page-slot[position="Section2A"]');
-    if (section){
-        section.insertAdjacentHTML('beforeend', carouselHtml);
-    }
+        section.insertAdjacentHTML('beforebegin', carouselHtml);
+
+
+    const carousel = section.previousElementSibling; 
+    const container = carousel.querySelector('.carousel-container');
+    const prevBtn = carousel.querySelector('.carousel-btn.prev');
+    const nextBtn = carousel.querySelector('.carousel-btn.next');
+
+    const gap = 10;
+    prevBtn.addEventListener('click', () => {
+        container.scrollBy({ left: -(container.querySelector('.product').offsetWidth + gap), behavior: 'smooth' });
+    });
+    nextBtn.addEventListener('click', () => {
+        container.scrollBy({ left: container.querySelector('.product').offsetWidth + gap, behavior: 'smooth' });
+    });
+
+
    
 };
 
@@ -145,29 +159,76 @@ const buildCSS = () => {
 
     .carousel {
     display: flex;
-        flex-direction: column;
-        margin: 20px 0;
+    flex-direction: column;
+    margin: 20px 0;
+    font-family: "Open Sans", sans-serif;
     }
 
     .carousel h2 {
-        font-size: 18px;
-        margin-bottom: 10px;
+        font-family: Quicksand-SemiBold;
+        font-weight: 500; 
+        font-size: clamp(18px, 2vw, 24px);
+        line-height: 1.3;                     
+        color: #212738;                      
+        margin: 0 0 10px 0;                   
+        text-align: left; 
+    }
+
+     .carousel-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
     }
 
     .carousel-container {
         display: flex;
         overflow-x: auto;
         gap: 10px;
-        padding-bottom: 10px;
+        padding: 0 20px;
+        scroll-behavior: smooth;
+        justify-content: flex-start;
+        max-width: 100%;
+        flex-wrap: nowrap;
     }
 
     .carousel-container::-webkit-scrollbar {
         display: none;
     }
 
+    .carousel-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 44px;
+        height: 44px;
+        background-color: rgba(255,255,255,0.9);
+        border: none;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        box-shadow: 0 2px 2px rgba(0,0,0,0.2);
+        cursor: pointer;
+        font-size: 20px;
+        z-index: 10;
+        
+    }
+
+    .carousel-btn.prev {
+     left: 0;
+     position: absolute;
+     top: 50%;
+     transform: translateY(-50%);
+      }
+    .carousel-btn.next { right: 0;position: absolute;
+     top: 50%;
+     transform: translateY(-50%); }
+
     .product {
-    width: 242px;
-    height: 557px;
+    flex: 0 0 auto;
+    width: clamp(150px, 30%, 242px);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -175,16 +236,90 @@ const buildCSS = () => {
     margin: 8px;
     padding: 8px;
     box-sizing: border-box;
-    font-family: "Quicksand-Medium", sans-serif;
+    background: #fff;
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+
+
 
     }
 
     .product img {
     width: 100%;
-    height: 35%;    
-    object-fit: cover;
-    background-color: #f2f2f2;
+    aspect-ratio: 242 / 200;    
+    object-fit: contain;
+    background-color: #fff;
     border-radius: 8px;
+    display: block;
+    margin: 0 auto;
+    
+    }
+
+    .brand {
+        font-family: 'Quicksand-Medium', sans-serif;
+        font-size: 12px;
+        color: #747881;
+        margin: 5px 0 0;
+    }
+
+    .product-item__brand-name {
+    font-family: 'Quicksand-Medium', sans-serif;
+    gap: 4px;             
+    font-size: 12px;
+    line-height: 1.2;
+    color: var(--Primary-Black);
+}
+
+.product-item__brand-name .brand {
+    font-family: 'Quicksand-Medium', sans-serif;
+    font-weight: bolder;
+    white-space: nowrap;
+    color: var(--Primary-Black);
+}
+
+.product-item__brand-name .description {
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 500;
+    color: var(--Primary-Black);    
+    word-break: break-word;
+}
+
+    .product .add-icon {
+    position: absolute;
+    bottom: 10px;          
+    right: 10px;
+    width: 48px;           
+    height: 48px;
+    background-color: #fff; 
+    color: #007bff;       
+    border: 2px solid #fff; 
+    border-radius: 50%;   
+    font-size: 28px;
+    font-weight: bold;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+    cursor: pointer;
+    transition: all 0.3s ease;
+    line-height: 1;
+}
+
+
+    .add-icon:hover {
+    background-color: #007bff;    
+    color: #fff;                  
+    border-color: #fff;           
+}
+
+
+
+    .product-name {
+        font-size: 14px;
+        margin: 5px 0 5px;
+        line-height: 1.2;
+        color: #212738;
     }
 
     .product h2 {
@@ -218,26 +353,28 @@ const buildCSS = () => {
 
 
     .heart-icon {
-            display: inline-block;
-            width: 24px;
-            height: 24px;
-            border: 2px solid #ccc;
-            border-radius: 50%;
-            background-color: transparent; 
-            position: relative;
-            cursor: pointer;
-            transition: all 0.3s;
-            margin-top: 8px;
+    font-family: 'Arial';
+        position: absolute;
+    top: 8px; 
+    right: 8px; 
+    width: 28px;
+    height: 28px;
+    border-radius: 50%; 
+    background-color: #fff; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.3s ease;
+    font-size: 16px;
         }
 
         .heart-icon::before {
-            content: "\\2661";
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #ccc; 
-            font-size: 20px;
+        content: "\\2661"; 
+        color: #ccc;
+         font-size: 16px;
+        transition: color 0.3s
         }
 
         .heart-icon:hover::before {
@@ -245,7 +382,7 @@ const buildCSS = () => {
         }
 
         .heart-icon.filled::before {
-            content: "\\2665"; 
+            content: "\\2764"; 
             color: orange;
         }
 
@@ -257,13 +394,18 @@ const buildCSS = () => {
 };        
 
 (async function initCarousel() {
-    if (!(await isHomePage())) return; 
+    if (!isHomePage()) {
+        console.log("wrong page");
+        if (existingCarousel) existingCarousel.remove();
+        return;
+    } 
+    
 
     buildCSS();                     
     const products = await getData(); 
 
     createCarousel(products);        
     setEvents();                    
-})();
+}
 
-
+)();
